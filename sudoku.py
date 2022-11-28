@@ -1,4 +1,5 @@
 import datetime
+import math
 
 
 class Sudoku:
@@ -24,7 +25,13 @@ class Sudoku:
         self._init_solution_board()
 
     def _init_solution_board(self):
-        self.solution = [[None] * self.n] * self.n
+        self.solution = []
+        for i in range(0, self.n):
+            self.solution.append([None] * self.n)
+            for j in range(0, self.n):
+                if self.board[i][j]:
+                    if len(self.board[i][j]) == 1:
+                        self.solution[i][j] = self.board[i][j][0]
 
     def is_valid(self):
         """Checks if input board is valid and solvable."""
@@ -66,6 +73,62 @@ class Sudoku:
         self.runtime = (end_time - start_time).total_seconds()
         return None
 
+    def _is_solved(self):
+        return None not in self.solution
+
+    def _fill_solution_board(self):
+        for i in range(0, self.n):
+            for j in range(0, self.n):
+                if len(self.board[i][j]) == 1:
+                    self.solution[i][j] = self.board[i][j][0]
+
+    def _ac3_get_neighbors(self, cell):
+        """
+        :param cell: (i, j) cell of puzzle board
+        :return: list of ((k, h), (i, j)), where (k, h) is cell in the same row, column or sub-grid as (i, j)
+        """
+        i, j = cell
+        neighbors = set()
+        # add row constraints
+        for k in range(0, self.n):
+            if k != i:
+                neighbors.add(((k, j), (i, j)))
+        # add column constraints
+        for k in range(0, self.n):
+            if k != j:
+                neighbors.add(((i, k), (i, j)))
+        # add sub-grid constraints
+        grid_x_start = i - (i % int(math.sqrt(self.n)))
+        grid_y_start = j - (j % int(math.sqrt(self.n)))
+        for k in range(grid_x_start, grid_x_start + 3):
+            for h in range(grid_y_start, grid_y_start + 3):
+                if k != i or h != j:
+                    neighbors.add(((k, h), (i, j)))
+
+        return list(neighbors)
+
+    def _get_constraint_queue(self):
+        q = []
+        for i in range(0, self.n):
+            for j in range(0, self.n):
+                constraints = self._ac3_get_neighbors((i, j))
+                q += constraints
+
+        return q
+
+    def _ac3_revise(self, first, second):
+        first_domain = self.board[first[0]][first[1]]
+        second_domain = self.board[second[0]][second[1]]
+        revised = False
+
+        if len(second_domain) == 1:
+            # Second cell has fixed value, remove that value from first's domain
+            if second_domain[0] in first_domain:
+                first_domain.remove(second_domain[0])
+                revised = True
+        return revised
+
+
     def _ac3(self):
         """
         Executes AC3 algorithm.
@@ -75,7 +138,19 @@ class Sudoku:
         None - otherwise
         """
         print('executing AC3')
-        pass
+        q = self._get_constraint_queue()
+        while q:
+            (first, second) = q.pop(0)
+            if self._ac3_revise(first, second):
+                if not self.board[first[0]][first[1]]:
+                    return False
+                neighbors = self._ac3_get_neighbors(first)
+                for neighbor in neighbors:
+                    q.append(neighbor)
+
+        self._fill_solution_board()
+
+        return True if self._is_solved() else None
 
     def _naked_single(self):
         """

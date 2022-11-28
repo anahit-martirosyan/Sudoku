@@ -1,10 +1,9 @@
-import numpy as np
 from sudoku import Sudoku
 
 
 # Temporary - for testing
 def get_input(file):
-    return np.array([
+    return [
         [1, None, None, None, None, None, None, None, 2],
         [None, None, 8, None, None, 9, None, 3, 7],
         [7, None, None, 5, 3, None, None, 8, None],
@@ -14,12 +13,18 @@ def get_input(file):
         [None, 1, None, None, 8, 7, None, None, 9],
         [3, 4, None, 6, None, None, 8, None, None],
         [8, None, None, None, None, None, None, None, 1],
-    ])
+    ]
 
 
 # Temporary - for testing
 def show_output(board, file):
-    pass
+    n = len(board)
+    print('-' * (4 * n))
+    for i in range(0, n):
+        for j in range(0, n):
+            print('| {} '.format(board[i][j]), end='')
+        print('|')
+        print('-' * (4 * n))
 
 
 # Press the green button in the gutter to run the script.

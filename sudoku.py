@@ -74,36 +74,34 @@ class Sudoku:
         return None
 
     def _is_solved(self):
-        return None not in self.solution
-
-    def _fill_solution_board(self):
         for i in range(0, self.n):
             for j in range(0, self.n):
-                if len(self.board[i][j]) == 1:
-                    self.solution[i][j] = self.board[i][j][0]
+                if self.solution[i][j] is None:
+                    return False
+        return True
 
     def _ac3_get_neighbors(self, cell):
         """
         :param cell: (i, j) cell of puzzle board
-        :return: list of ((k, h), (i, j)), where (k, h) is cell in the same row, column or sub-grid as (i, j)
+        :return: list of (k, h), where (k, h) is cell in the same row, column or sub-grid as (i, j)
         """
         i, j = cell
         neighbors = set()
         # add row constraints
         for k in range(0, self.n):
             if k != i:
-                neighbors.add(((k, j), (i, j)))
+                neighbors.add((k, j))
         # add column constraints
         for k in range(0, self.n):
             if k != j:
-                neighbors.add(((i, k), (i, j)))
+                neighbors.add((i, k))
         # add sub-grid constraints
         grid_x_start = i - (i % int(math.sqrt(self.n)))
         grid_y_start = j - (j % int(math.sqrt(self.n)))
         for k in range(grid_x_start, grid_x_start + 3):
             for h in range(grid_y_start, grid_y_start + 3):
                 if k != i or h != j:
-                    neighbors.add(((k, h), (i, j)))
+                    neighbors.add((k, h))
 
         return list(neighbors)
 
@@ -111,9 +109,8 @@ class Sudoku:
         q = []
         for i in range(0, self.n):
             for j in range(0, self.n):
-                constraints = self._ac3_get_neighbors((i, j))
-                q += constraints
-
+                neighbors = self._ac3_get_neighbors((i, j))
+                q += [((i, j), (k, h)) for (k, h) in neighbors]
         return q
 
     def _ac3_revise(self, first, second):
@@ -145,10 +142,7 @@ class Sudoku:
                 if not self.board[first[0]][first[1]]:
                     return False
                 neighbors = self._ac3_get_neighbors(first)
-                for neighbor in neighbors:
-                    q.append(neighbor)
-
-        self._fill_solution_board()
+                q += [((k, h), first) for (k, h) in neighbors]
 
         return True if self._is_solved() else None
 
@@ -161,7 +155,18 @@ class Sudoku:
         None - otherwise
         """
         print('executing Naked Single')
-        pass
+        q = [((i, j), None) for i in range(0, self.n) for j in range(0, self.n) if len(self.board[i][j]) == 1]
+        while q:
+            ((i, j), v) = q.pop(0)
+            if v:
+                if v in self.board[i][j]:
+                    self.board[i][j].remove(v)
+            if len(self.board[i][j]) == 1:
+                self.solution[i][j] = self.board[i][j][0]
+                neighbors = self._ac3_get_neighbors((i, j))
+                q += [(neighbor, self.solution[i][j]) for neighbor in neighbors if self.solution[neighbor[0]][neighbor[1]] is None]
+
+        return True if self._is_solved() else None
 
     def _full_house(self):
         """

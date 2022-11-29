@@ -44,8 +44,16 @@ class Sudoku:
     def _construct_algorithm(self, only_backtracking, backtracking_with_heuristic):
         """ Construct sequence of optimization algorithm is going to perform based on input parameters"""
         # TODO
-        sequence = [self._ac3, self._naked_single, self._full_house, self._hidden_single, self._hidden_pair,
-                    self._hidden_triples, self._locked_candidates, self._x_wing, self._backtracking]
+        sequence = [
+            self._ac3,
+            self._naked_single,
+            self._full_house,
+            self._hidden_single,
+            self._hidden_pair,
+            self._hidden_triples,
+            self._locked_candidates,
+            self._x_wing,
+            self._backtracking]
 
         return sequence
 
@@ -60,11 +68,11 @@ class Sudoku:
 
         for action in sequence:
             result = action()
-            if result:
+            if result and self._is_solved():
                 end_time = datetime.datetime.now()
                 self.runtime = (end_time - start_time).total_seconds()
                 return self.solution
-            if result is False:
+            if not result:
                 end_time = datetime.datetime.now()
                 self.runtime = (end_time - start_time).total_seconds()
                 return None
@@ -130,9 +138,8 @@ class Sudoku:
         """
         Executes AC3 algorithm.
         :return
-        True - if after performing the algorithm puzzle is solved.
         False - if after performing the algorithm domain of some variable became empty.
-        None - otherwise
+        True - otherwise.
         """
         print('executing AC3')
         q = self._get_constraint_queue()
@@ -144,15 +151,14 @@ class Sudoku:
                 neighbors = self._ac3_get_neighbors(first)
                 q += [((k, h), first) for (k, h) in neighbors]
 
-        return True if self._is_solved() else None
+        return True
 
     def _naked_single(self):
         """
         Executes Naked Single optimization.
         :return
-        True - if after performing the algorithm puzzle is solved.
         False - if after performing the algorithm domain of some variable became empty.
-        None - otherwise
+        True - otherwise
         """
         print('executing Naked Single')
         q = [((i, j), None) for i in range(0, self.n) for j in range(0, self.n) if len(self.board[i][j]) == 1]
@@ -166,26 +172,75 @@ class Sudoku:
                 neighbors = self._ac3_get_neighbors((i, j))
                 q += [(neighbor, self.solution[i][j]) for neighbor in neighbors if self.solution[neighbor[0]][neighbor[1]] is None]
 
-        return True if self._is_solved() else None
+        return True
+
+    def _get_missing_value(self, data):
+        print('data: {}'.format(data))
+        for i in range(1, self.n + 1):
+            if  i not in data:
+                return i
+
+        assert False
 
     def _full_house(self):
         """
         Executes Full House optimization.
         :return
-        True - if after performing the algorithm puzzle is solved.
         False - if after performing the algorithm domain of some variable became empty.
-        None - otherwise
+        True - otherwise
         """
         print('executing Full House')
-        pass
+        # Checking rows
+        for i in range(0, self.n):
+            row_values = self.solution[i]
+            if row_values.count(None) == 1:
+                v = self._get_missing_value(self.solution[i])
+                unassigned_var_y = row_values.index(None)
+                if v in self.board[i][unassigned_var_y]:
+                    self.solution[i][unassigned_var_y] = v
+                else:
+                    return False
+
+        # Checking columns
+        for j in range(0, self.n):
+            col_values = [self.solution[i][j] for i in range(0, self.n)]
+            if col_values.count(None) == 1:
+                v = self._get_missing_value(col_values)
+                unassigned_var_x = col_values.index(None)
+                if v in self.board[unassigned_var_x][j]:
+                    self.solution[unassigned_var_x][j] = v
+                else:
+                    return False
+
+        # Checking sub-grids
+        grid_n = int(math.sqrt(self.n))
+        for i in range(0, int(math.sqrt(self.n))):
+            for j in range(0, int(math.sqrt(self.n))):
+                grid_start_x = i * grid_n
+                grid_start_y = j * grid_n
+
+                grid_values = [self.solution[grid_start_x + k][grid_start_y + h]
+                               for k in range(0, grid_n) for h in range(0, grid_n)]
+                if grid_values.count(None) == 1:
+                    v = self._get_missing_value(grid_values)
+                    unassigned_var_x, unassigned_var_y = None, None
+                    for k in range(grid_start_x, grid_start_x + grid_n):
+                        for h in range(grid_start_y, grid_start_y + grid_n):
+                            if self.solution[k][h] is None:
+                                unassigned_var_x = k
+                                unassigned_var_y = h
+
+                    if v in self.board[unassigned_var_x][unassigned_var_y]:
+                        self.solution[unassigned_var_x][unassigned_var_y] = v
+                    else:
+                        return False
 
     def _hidden_single(self):
         """
         Executes Hidden Single optimization.
         :return
-        True - if after performing the algorithm puzzle is solved.
         False - if after performing the algorithm domain of some variable became empty.
-        None - otherwise
+        True - otherwise
         """
         print('executing Hidden Single')
         pass
@@ -194,9 +249,8 @@ class Sudoku:
         """
         Executes Hidden Pair optimization.
         :return
-        True - if after performing the algorithm puzzle is solved.
         False - if after performing the algorithm domain of some variable became empty.
-        None - otherwise
+        True - otherwise
         """
         print('executing Hidden Pair')
         pass
@@ -205,9 +259,8 @@ class Sudoku:
         """
         Executes Hidden Triples optimization.
         :return
-        True - if after performing the algorithm puzzle is solved.
         False - if after performing the algorithm domain of some variable became empty.
-        None - otherwise
+        True - otherwise
         """
         print('executing Hidden Triples')
         pass
@@ -216,9 +269,8 @@ class Sudoku:
         """
         Executes Locked Candidates optimization.
         :return
-        True - if after performing the algorithm puzzle is solved.
         False - if after performing the algorithm domain of some variable became empty.
-        None - otherwise
+        True - otherwise
         """
         print('executing Locked Candidates')
         pass
@@ -227,9 +279,8 @@ class Sudoku:
         """
         Executes X Wings optimization.
         :return
-        True - if after performing the algorithm puzzle is solved.
         False - if after performing the algorithm domain of some variable became empty.
-        None - otherwise
+        True - otherwise
         """
         print('executing X Wings')
         pass
@@ -238,9 +289,8 @@ class Sudoku:
         """
         Executes Backtracking.
         :return
-        True - if after performing the algorithm puzzle is solved.
         False - if after performing the algorithm domain of some variable became empty.
-        None - otherwise
+        True - otherwise
         """
         print('executing Backtracking')
         pass

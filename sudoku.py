@@ -88,6 +88,10 @@ class Sudoku:
                     return False
         return True
 
+    def _set_value(self, i, j, v):
+        self.solution[i][j] = v
+        self.board[i][j] = [v]
+
     def _ac3_get_neighbors(self, cell):
         """
         :param cell: (i, j) cell of puzzle board
@@ -168,14 +172,13 @@ class Sudoku:
                 if v in self.board[i][j]:
                     self.board[i][j].remove(v)
             if len(self.board[i][j]) == 1:
-                self.solution[i][j] = self.board[i][j][0]
+                self._set_value(i, j, self.board[i][j][0])
                 neighbors = self._ac3_get_neighbors((i, j))
                 q += [(neighbor, self.solution[i][j]) for neighbor in neighbors if self.solution[neighbor[0]][neighbor[1]] is None]
 
         return True
 
     def _get_missing_value(self, data):
-        print('data: {}'.format(data))
         for i in range(1, self.n + 1):
             if  i not in data:
                 return i
@@ -197,7 +200,7 @@ class Sudoku:
                 v = self._get_missing_value(self.solution[i])
                 unassigned_var_y = row_values.index(None)
                 if v in self.board[i][unassigned_var_y]:
-                    self.solution[i][unassigned_var_y] = v
+                    self._set_value(i, unassigned_var_y, v)
                 else:
                     return False
 
@@ -208,7 +211,7 @@ class Sudoku:
                 v = self._get_missing_value(col_values)
                 unassigned_var_x = col_values.index(None)
                 if v in self.board[unassigned_var_x][j]:
-                    self.solution[unassigned_var_x][j] = v
+                    self._set_value(unassigned_var_x, j, v)
                 else:
                     return False
 
@@ -223,17 +226,36 @@ class Sudoku:
                                for k in range(0, grid_n) for h in range(0, grid_n)]
                 if grid_values.count(None) == 1:
                     v = self._get_missing_value(grid_values)
-                    unassigned_var_x, unassigned_var_y = None, None
-                    for k in range(grid_start_x, grid_start_x + grid_n):
-                        for h in range(grid_start_y, grid_start_y + grid_n):
-                            if self.solution[k][h] is None:
-                                unassigned_var_x = k
-                                unassigned_var_y = h
+                    unassigned_var_x = grid_start_x + grid_values.index(None) % grid_n
+                    unassigned_var_y = grid_start_y + grid_values.index(None) // grid_n
+                    # for k in range(grid_start_x, grid_start_x + grid_n):
+                    #     for h in range(grid_start_y, grid_start_y + grid_n):
+                    #         if self.solution[k][h] is None:
+                    #             unassigned_var_x = k
+                    #             unassigned_var_y = h
 
                     if v in self.board[unassigned_var_x][unassigned_var_y]:
-                        self.solution[unassigned_var_x][unassigned_var_y] = v
+                        self._set_value(unassigned_var_x, unassigned_var_y, v)
                     else:
                         return False
+
+    @staticmethod
+    def _present_in_one_cell_domain(v, domains):
+        """
+        Checks if value v presents in the domain of only one variable
+        :param v: value being checked
+        :param domains: domains of variable that are in the same row, column or sub-grid
+        :return: Index of the domain containing v if it presents in exactly one domain, None if more than one domain,
+         and -1 if does not present in any of domains
+        """
+        index = -1
+        for i, domain in enumerate(domains):
+            if v in domain:
+                if index == -1:
+                    index = i
+                else:
+                    return None
+        return index
 
     def _hidden_single(self):
         """
@@ -243,7 +265,44 @@ class Sudoku:
         True - otherwise
         """
         print('executing Hidden Single')
-        pass
+
+        # Checking rows
+        for i in range(0, self.n):
+            row_domains = self.board[i]
+            for v in range(1, self.n + 1):
+                index = self._present_in_one_cell_domain(v, row_domains)
+                if index == -1:
+                    return False
+
+                if index:
+                    self._set_value(i, index, v)
+
+
+        # Checking columns
+        for j in range(0, self.n):
+            col_domains = [self.board[i][j] for i in range(0, self.n)]
+            for v in range(1, self.n + 1):
+                index = self._present_in_one_cell_domain(v, col_domains)
+                if index == -1:
+                    return False
+                if index:
+                    self._set_value(index, j, v)
+
+        # Checking sub-grids
+        grid_n = int(math.sqrt(self.n))
+        for i in range(0, int(math.sqrt(self.n))):
+            for j in range(0, int(math.sqrt(self.n))):
+                grid_start_x = i * grid_n
+                grid_start_y = j * grid_n
+
+                grid_domains = [self.board[grid_start_x + k][grid_start_y + h]
+                               for k in range(0, grid_n) for h in range(0, grid_n)]
+                for v in range(1, self.n + 1):
+                    index = self._present_in_one_cell_domain(v, grid_domains)
+                    if index == -1:
+                        return False
+                    if index:
+                        self._set_value(grid_start_x + index % grid_n, grid_start_y + index // grid_n, v)
 
     def _hidden_pair(self):
         """

@@ -35,11 +35,91 @@ class Sudoku:
 
     def is_valid(self):
         """Checks if input board is valid and solvable."""
-        # TODO
+        # for 9x9, check if at least 17 clues are given
+        if self.n == 9:
+            ls = [i for j in self.initial_board for i in j]
+            num_clues = sum(x is not None for x in ls)
+            if num_clues < 17:
+                return False
+
+        # check rows
+        for i in range(self.n):
+            vals = set()
+            for j in range(self.n):
+                if self.initial_board[i][j] in vals:
+                    return False
+                if self.initial_board[i][j] is not None:
+                    vals.add(self.initial_board[i][j])
+
+        # check columns
+        for j in range(self.n):
+            vals = set()
+            for i in range(self.n):
+                if self.initial_board[i][j] in vals:
+                    return False
+                if self.initial_board[i][j] is not None:
+                    vals.add(self.initial_board[i][j])
+
+        # check sub-grids
+        grid_n = int(math.sqrt(self.n))
+        for i in range(grid_n):
+            for j in range(grid_n):
+                vals = set()
+                start_x = i * grid_n
+                start_y = j * grid_n
+
+                for k in range(grid_n):
+                    for m in range(grid_n):
+                        val = self.initial_board[start_x + k][start_y + m]
+                        if val in vals:
+                            return False
+                        if val is not None:
+                            vals.add(val)
         return True
 
     def is_valid_solution(self):
-        """Checks if solution found by the algorithm is valid. (May be used for testing.)"""
+        """Checks if solution found by the algorithm is valid."""
+        # check if the corresponding values of the initial board and the solution are equal
+        for i in range(self.n):
+            for j in range(self.n):
+                if self.initial_board[i][j] and self.solution[i][j]:
+                    if self.solution[i][j] != self.initial_board[i][j]:
+                        return False
+
+        # check rows
+        for i in range(self.n):
+            vals = set()
+            for j in range(self.n):
+                if self.solution[i][j] in vals:
+                    return False
+                if self.solution[i][j] is not None:
+                    vals.add(self.solution[i][j])
+
+        # check columns
+        for j in range(self.n):
+            vals = set()
+            for i in range(self.n):
+                if self.solution[i][j] in vals:
+                    return False
+                if self.solution[i][j] is not None:
+                    vals.add(self.solution[i][j])
+
+        # check sub-grids
+        grid_n = int(math.sqrt(self.n))
+        for i in range(grid_n):
+            for j in range(grid_n):
+                vals = set()
+                start_x = i * grid_n
+                start_y = j * grid_n
+
+                for k in range(grid_n):
+                    for m in range(grid_n):
+                        val = self.solution[start_x + k][start_y + m]
+                        if val in vals:
+                            return False
+                        if val is not None:
+                            vals.add(val)
+        return True
 
     def _construct_algorithm(self, only_backtracking, backtracking_with_heuristic):
         """ Construct sequence of optimization algorithm is going to perform based on input parameters"""

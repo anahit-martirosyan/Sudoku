@@ -15,6 +15,7 @@ class Sudoku:
 
         self.runtime = None
         self.n = len(board)
+        self.initial_board = board
         self.board = [[]] * self.n
         for i in range(0, self.n):
             self.board[i] = [[]] * self.n
@@ -29,9 +30,8 @@ class Sudoku:
         for i in range(0, self.n):
             self.solution.append([None] * self.n)
             for j in range(0, self.n):
-                if self.board[i][j]:
-                    if len(self.board[i][j]) == 1:
-                        self.solution[i][j] = self.board[i][j][0]
+                if self.initial_board[i][j]:
+                    self.solution[i][j] = self.initial_board[i][j]
 
     def is_valid(self):
         """Checks if input board is valid and solvable."""
@@ -239,54 +239,64 @@ class Sudoku:
                     else:
                         return False
 
+    def _get_all_values(self):
+        return [(i, ) for i in range(1, self.n + 1)]
+
+    def _get_all_value_pairs(self):
+         return [(i, j) for i in range(1, self.n) for j in range(i + 1, self.n + 1)]
+
+    def _get_all_value_triples(self):
+        return [(i, j, k) for i in range(1, self.n - 1) for j in range(i + 1, self.n) for k in range(j + 1, self.n + 1)]
+
     @staticmethod
-    def _present_in_one_cell_domain(v, domains):
+    def _get_value_domain_indices(values, domains):
         """
         Checks if value v presents in the domain of only one variable
-        :param v: value being checked
+        :param values: tuple of values being checked
         :param domains: domains of variable that are in the same row, column or sub-grid
-        :return: Index of the domain containing v if it presents in exactly one domain, None if more than one domain,
-         and -1 if does not present in any of domains
+        :return: List of indices of the domain containing values
         """
-        index = -1
-        for i, domain in enumerate(domains):
-            if v in domain:
-                if index == -1:
-                    index = i
-                else:
-                    return None
-        return index
+        indices = set()
+        for v in values:
+            for i, domain in enumerate(domains):
+                if v in domain:
+                    indices.add(i)
+        return list(indices)
 
-    def _hidden_single(self):
+    def _set_domains(self, values, cells):
         """
-        Executes Hidden Single optimization.
-        :return
-        False - if after performing the algorithm domain of some variable became empty.
-        True - otherwise
+        Set domains of cells to be equal to values
+        :param values: list of values to be set
+        :param cells: indices indicating cells whose domains are going to be affected
+        :return: 
         """
-        print('executing Hidden Single')
+        for (i, j) in cells:
+            self.board[i][j] = list(set(self.board[i][j]) & set(values))
 
+    def _hidden_single_pair_triple(self, all_values):
+        preferred_domain_size = len(all_values[0])
         # Checking rows
         for i in range(0, self.n):
             row_domains = self.board[i]
-            for v in range(1, self.n + 1):
-                index = self._present_in_one_cell_domain(v, row_domains)
-                if index == -1:
+            for v in all_values:
+                indices = self._get_value_domain_indices(v, row_domains)
+                if not indices:
                     return False
-
-                if index:
-                    self._set_value(i, index, v)
+                # print('value: {}, indices: {}'.format(v, indices))
+                if len(indices) == preferred_domain_size:
+                    self._set_domains(list(v), [(i, j) for j in indices])
 
 
         # Checking columns
         for j in range(0, self.n):
             col_domains = [self.board[i][j] for i in range(0, self.n)]
-            for v in range(1, self.n + 1):
-                index = self._present_in_one_cell_domain(v, col_domains)
-                if index == -1:
+            for v in all_values:
+                indices = self._get_value_domain_indices(v, col_domains)
+                if not indices:
                     return False
-                if index:
-                    self._set_value(index, j, v)
+                if len(indices) == preferred_domain_size:
+                    self._set_domains(list(v), [(i, j) for i in indices])
+
 
         # Checking sub-grids
         grid_n = int(math.sqrt(self.n))
@@ -297,12 +307,26 @@ class Sudoku:
 
                 grid_domains = [self.board[grid_start_x + k][grid_start_y + h]
                                for k in range(0, grid_n) for h in range(0, grid_n)]
-                for v in range(1, self.n + 1):
-                    index = self._present_in_one_cell_domain(v, grid_domains)
-                    if index == -1:
+                for v in all_values:
+                    indices = self._get_value_domain_indices(v, grid_domains)
+                    if not indices:
                         return False
-                    if index:
-                        self._set_value(grid_start_x + index % grid_n, grid_start_y + index // grid_n, v)
+                    if len(indices) == preferred_domain_size:
+                        self._set_domains(list(v), [(grid_start_x + i % grid_n, grid_start_x + i % grid_n) for i in indices])
+
+
+    def _hidden_single(self):
+        """
+        Executes Hidden Single optimization.
+        :return
+        False - if after performing the algorithm domain of some variable became empty.
+        True - otherwise
+        """
+        print('executing Hidden Single')
+        all_values = self._get_all_values()
+        if self._hidden_single_pair_triple(all_values):
+            return self._naked_single()
+        return False
 
     def _hidden_pair(self):
         """
@@ -312,7 +336,8 @@ class Sudoku:
         True - otherwise
         """
         print('executing Hidden Pair')
-        pass
+        all_pairs = self._get_all_value_pairs()
+        return self._hidden_single_pair_triple(all_pairs)
 
     def _hidden_triples(self):
         """
@@ -322,7 +347,8 @@ class Sudoku:
         True - otherwise
         """
         print('executing Hidden Triples')
-        pass
+        all_triples = self._get_all_value_triples()
+        return self._hidden_single_pair_triple(all_triples)
 
     def _locked_candidates(self):
         """

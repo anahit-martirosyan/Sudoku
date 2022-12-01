@@ -481,7 +481,36 @@ class Sudoku:
         True - otherwise
         """
         print('executing Locked Candidates')
-        pass
+        grid_n = int(math.sqrt(self.n))
+        # queue if grid indices
+        q = [(i, j) for i in range(0, grid_n) for j in range(0, grid_n)]
+        while q:
+            (i, j) = q.pop(0)
+            grid_start_x = i * grid_n
+            grid_start_y = j * grid_n
+            for v in range(1, self.n + 1):
+                candidates = [(i, j) for i in range(grid_start_x, grid_start_x + grid_n)
+                              for j in range(grid_start_y, grid_start_y + grid_n) if v in self.board[i][j]]
+
+                if len(candidates) < grid_n:
+                    q_set = set()
+                    cells_to_alter = []
+                    if len(set([i for i, _ in candidates])) == 1:
+                        # all candidates are in the same row
+                        k = candidates[0][0]
+                        cells_to_alter += [(k, h) for h in list(range(0, grid_start_y)) +  list(range(grid_start_y + grid_n, self.n))]
+
+                    elif len(set([j for _, j in candidates])) == 1:
+                        # all candidates are in the same column
+                        h = candidates[0][1]
+                        cells_to_alter += [(k, h) for k in list(range(0, grid_start_x)) + list(range(grid_start_x + grid_n, self.n))]
+
+                    for k, h in cells_to_alter:
+                        if v in self.board[k][h]:
+                            self.board[k][h].remove(v)
+                            q_set.add((k // grid_n, h // grid_n))
+
+                    q.extend(list(q_set))
 
     def _x_wing(self):
         """

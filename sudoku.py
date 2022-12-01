@@ -127,6 +127,7 @@ class Sudoku:
         sequence = [
             self._ac3,
             self._naked_single,
+            self._naked_pair,
             self._full_house,
             self._hidden_single,
             self._hidden_pair,
@@ -172,7 +173,8 @@ class Sudoku:
         self.solution[i][j] = v
         self.board[i][j] = [v]
 
-    def _ac3_get_neighbors(self, cell):
+
+    def _get_neighbors(self, cell):
         """
         :param cell: (i, j) cell of puzzle board
         :return: list of (k, h), where (k, h) is cell in the same row, column or sub-grid as (i, j)
@@ -201,7 +203,7 @@ class Sudoku:
         q = []
         for i in range(0, self.n):
             for j in range(0, self.n):
-                neighbors = self._ac3_get_neighbors((i, j))
+                neighbors = self._get_neighbors((i, j))
                 q += [((i, j), (k, h)) for (k, h) in neighbors]
         return q
 
@@ -217,7 +219,6 @@ class Sudoku:
                 revised = True
         return revised
 
-
     def _ac3(self):
         """
         Executes AC3 algorithm.
@@ -232,10 +233,11 @@ class Sudoku:
             if self._ac3_revise(first, second):
                 if not self.board[first[0]][first[1]]:
                     return False
-                neighbors = self._ac3_get_neighbors(first)
+                neighbors = self._get_neighbors(first)
                 q += [((k, h), first) for (k, h) in neighbors]
 
         return True
+
 
     def _naked_single(self):
         """
@@ -253,9 +255,49 @@ class Sudoku:
                     self.board[i][j].remove(v)
             if len(self.board[i][j]) == 1:
                 self._set_value(i, j, self.board[i][j][0])
-                neighbors = self._ac3_get_neighbors((i, j))
+                neighbors = self._get_neighbors((i, j))
                 q += [(neighbor, self.solution[i][j]) for neighbor in neighbors if self.solution[neighbor[0]][neighbor[1]] is None]
 
+        return True
+
+
+    def _naked_pair(self):
+        """
+        Executes Naked Pair optimization.
+        :return
+        False - if after performing the algorithm domain of some variable became empty.
+        True - otherwise
+        """
+        print('executing Naked Single')
+        grid_n = int(math.sqrt(self.n))
+
+        q = [((i, j), self.board[i][j]) for i in range(0, self.n) for j in range(0, self.n) if len(self.board[i][j]) == 2]
+        while q:
+            ((i, j), values) = q.pop(0)
+            neighbors = self._get_neighbors((i, j))
+            same_domain_neighbors = [n for n in neighbors if self.board[n[0]][n[1]] == self.board[i][j]]
+            for neighbor in same_domain_neighbors:
+                same_constraint_group_neighbors = []
+                if neighbor[0] == i:
+                    # Same row
+                    same_constraint_group_neighbors += [(i, h) for h in range(0, self.n)]
+                elif neighbor[1] == j:
+                    # Same column
+                    same_constraint_group_neighbors += [(k, j) for k in range(0, self.n)]
+                if (i // grid_n) == (neighbor[0] // grid_n) and (j // grid_n) == (neighbor[1] // grid_n):
+                    # Same grid
+                    grid_x_index = i // grid_n
+                    grid_y_index = j // grid_n
+                    grid_start_x = grid_x_index * grid_n
+                    grid_start_y = grid_y_index * grid_n
+                    same_constraint_group_neighbors += [(k, h) for k in range(grid_start_x, grid_start_x + grid_n)
+                                                            for h in range(grid_start_y, grid_start_y + grid_n)]
+
+                for k, h in same_constraint_group_neighbors:
+                        if (k, h) != (i, j) and (k, h) != neighbor:
+                            self.board[k][h] = [v for v in self.board[k][h] if v not in values]
+                            if len(self.board[k][h]) == 2:
+                                q.append(((k, h), self.board[k][h]))
         return True
 
     def _get_missing_value(self, data):
@@ -318,6 +360,7 @@ class Sudoku:
                         self._set_value(unassigned_var_x, unassigned_var_y, v)
                     else:
                         return False
+
 
     def _get_all_values(self):
         return [(i, ) for i in range(1, self.n + 1)]
@@ -394,7 +437,6 @@ class Sudoku:
                     if len(indices) == preferred_domain_size:
                         self._set_domains(list(v), [(grid_start_x + i % grid_n, grid_start_x + i % grid_n) for i in indices])
 
-
     def _hidden_single(self):
         """
         Executes Hidden Single optimization.
@@ -429,6 +471,7 @@ class Sudoku:
         print('executing Hidden Triples')
         all_triples = self._get_all_value_triples()
         return self._hidden_single_pair_triple(all_triples)
+
 
     def _locked_candidates(self):
         """

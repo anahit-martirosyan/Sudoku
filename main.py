@@ -32,6 +32,6 @@ if __name__ == '__main__':
     initial_board = get_input(None)
     sudoku_solver = Sudoku(initial_board)
     output_board = sudoku_solver.solve()
-    # show_output(sudoku_solver.solution)
-    show_output(output_board)
+    show_output(sudoku_solver.solution)
+    # show_output(output_board)
     # show_output(sudoku_solver.board)

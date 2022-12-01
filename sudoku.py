@@ -25,6 +25,8 @@ class Sudoku:
 
         self._init_solution_board()
 
+        self.backtracking_stack = []
+
     def _init_solution_board(self):
         self.solution = []
         for i in range(0, self.n):
@@ -134,7 +136,8 @@ class Sudoku:
             self._hidden_triples,
             self._locked_candidates,
             self._x_wing,
-            self._backtracking]
+            self._backtracking
+        ]
 
         return sequence
 
@@ -522,6 +525,40 @@ class Sudoku:
         print('executing X Wings')
         pass
 
+
+    def _inference(self, cells_assigned):
+        pass
+
+    def _get_next_cell(self, cell):
+        if cell is None:
+            return 0, 0
+
+        i, j = cell
+        i_next, j_next = i, j
+
+        if i + 1 < self.n:
+            i_next = i + 1
+        else:
+            i_next = 0
+            if j + 1 < self.n:
+                j_next = j + 1
+            else:
+                return None
+        return i_next, j_next
+
+    def _get_next_cell_for_assignment(self):
+        next_cell = self.backtracking_stack[-1] if self.backtracking_stack else None
+
+        while True:
+            next_cell = self._get_next_cell(next_cell)
+            if next_cell is None:
+                return None
+
+            if self.solution[next_cell[0]][next_cell[1]] is None:
+                self.backtracking_stack.append(next_cell)
+                return next_cell
+
+
     def _backtracking(self, with_heuristic=True):
         """
         Executes Backtracking.
@@ -530,4 +567,29 @@ class Sudoku:
         True - otherwise
         """
         print('executing Backtracking')
-        pass
+        if self._is_solved():
+            return True
+
+        next_cell = self._get_next_cell_for_assignment()
+
+        if next_cell is None:
+            return True
+        (i, j) = next_cell
+
+        for v in self.board[i][j]:
+            self.solution[i][j] = v
+            if self.is_valid_solution():
+                cells_assigned_in_inference = []
+                self._inference(cells_assigned_in_inference)
+                if self.is_valid_solution():
+                    res = self._backtracking()
+                    if res:
+                        return True
+
+                for (k, h) in cells_assigned_in_inference:
+                    self.solution[k][h] = None
+                self.solution[i][j] = None
+
+        self.solution[i][j] = None
+        self.backtracking_stack.pop()
+        return False

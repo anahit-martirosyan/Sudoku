@@ -123,32 +123,49 @@ class Sudoku:
                             vals.add(val)
         return True
 
-    def _construct_algorithm(self, only_backtracking, backtracking_with_heuristic):
+    @staticmethod
+    def show(board):
+        if not board:
+            print('No board')
+        n = len(board)
+        print('-' * (4 * n))
+        for i in range(0, n):
+            for j in range(0, n):
+                print('| {} '.format(board[i][j]), end='')
+            print('|')
+            print('-' * (4 * n))
+
+    def _construct_algorithm(self, backtracking_only, backtracking_with_heuristic):
         """ Construct sequence of optimization algorithm is going to perform based on input parameters"""
         # TODO
-        sequence = [
-            self._ac3,
-            self._naked_single,
-            self._naked_pair,
-            self._full_house,
-            self._hidden_single,
-            self._hidden_pair,
-            self._hidden_triples,
-            self._locked_candidates,
-            self._x_wing,
-            self._backtracking
-        ]
+        if backtracking_only:
+            sequence = [self._backtracking]
+        else:
+            sequence = [
+                self._ac3,
+                self._naked_single,
+                self._naked_pair,
+                self._full_house,
+                self._hidden_single,
+                self._hidden_pair,
+                self._hidden_triples,
+                self._locked_candidates,
+                self._x_wing,
+                self._backtracking
+            ]
 
         return sequence
 
-    def solve(self, only_backtracking=False, backtracking_with_heuristic=True):
+    def solve(self, backtracking_only=False, backtracking_with_heuristic=True):
         start_time = datetime.datetime.now()
         self._init_solution_board()
         if not self.is_valid():
             print("Not valid Sudoku")
+            end_time = datetime.datetime.now()
+            self.runtime = (end_time - start_time).total_seconds()
             return None
 
-        sequence = self._construct_algorithm(only_backtracking, backtracking_with_heuristic)
+        sequence = self._construct_algorithm(backtracking_only, backtracking_with_heuristic)
 
         for action in sequence:
             result = action()
@@ -229,15 +246,18 @@ class Sudoku:
         False - if after performing the algorithm domain of some variable became empty.
         True - otherwise.
         """
-        print('executing AC3')
+        # print('executing AC3')
         q = self._get_constraint_queue()
         while q:
             (first, second) = q.pop(0)
             if self._ac3_revise(first, second):
                 if not self.board[first[0]][first[1]]:
+                    # self.show(self.board)
                     return False
                 neighbors = self._get_neighbors(first)
                 q += [((k, h), first) for (k, h) in neighbors]
+
+        # self.show(self.board)
 
         return True
 
@@ -249,7 +269,7 @@ class Sudoku:
         False - if after performing the algorithm domain of some variable became empty.
         True - otherwise
         """
-        print('executing Naked Single')
+        # print('executing Naked Single')
         q = [((i, j), None) for i in range(0, self.n) for j in range(0, self.n) if len(self.board[i][j]) == 1]
         while q:
             ((i, j), v) = q.pop(0)
@@ -261,6 +281,7 @@ class Sudoku:
                 neighbors = self._get_neighbors((i, j))
                 q += [(neighbor, self.solution[i][j]) for neighbor in neighbors if self.solution[neighbor[0]][neighbor[1]] is None]
 
+        # self.show(self.board)
         return True
 
 
@@ -271,7 +292,7 @@ class Sudoku:
         False - if after performing the algorithm domain of some variable became empty.
         True - otherwise
         """
-        print('executing Naked Single')
+        # print('executing Naked Pair')
         grid_n = int(math.sqrt(self.n))
 
         q = [((i, j), self.board[i][j]) for i in range(0, self.n) for j in range(0, self.n) if len(self.board[i][j]) == 2]
@@ -301,6 +322,8 @@ class Sudoku:
                             self.board[k][h] = [v for v in self.board[k][h] if v not in values]
                             if len(self.board[k][h]) == 2:
                                 q.append(((k, h), self.board[k][h]))
+
+        # self.show(self.board)
         return True
 
     def _get_missing_value(self, data):
@@ -317,7 +340,7 @@ class Sudoku:
         False - if after performing the algorithm domain of some variable became empty.
         True - otherwise
         """
-        print('executing Full House')
+        # print('executing Full House')
         # Checking rows
         for i in range(0, self.n):
             row_values = self.solution[i]
@@ -327,6 +350,7 @@ class Sudoku:
                 if v in self.board[i][unassigned_var_y]:
                     self._set_value(i, unassigned_var_y, v)
                 else:
+                    # self.show(self.board)
                     return False
 
         # Checking columns
@@ -338,6 +362,7 @@ class Sudoku:
                 if v in self.board[unassigned_var_x][j]:
                     self._set_value(unassigned_var_x, j, v)
                 else:
+                    # self.show(self.board)
                     return False
 
         # Checking sub-grids
@@ -362,8 +387,11 @@ class Sudoku:
                     if v in self.board[unassigned_var_x][unassigned_var_y]:
                         self._set_value(unassigned_var_x, unassigned_var_y, v)
                     else:
+                        # self.show(self.board)
                         return False
 
+        # self.show(self.board)
+        return True
 
     def _get_all_values(self):
         return [(i, ) for i in range(1, self.n + 1)]
@@ -407,8 +435,9 @@ class Sudoku:
             for v in all_values:
                 indices = self._get_value_domain_indices(v, row_domains)
                 if not indices:
+                    # self.show(self.board)
                     return False
-                # print('value: {}, indices: {}'.format(v, indices))
+                # # print('value: {}, indices: {}'.format(v, indices))
                 if len(indices) == preferred_domain_size:
                     self._set_domains(list(v), [(i, j) for j in indices])
 
@@ -419,6 +448,7 @@ class Sudoku:
             for v in all_values:
                 indices = self._get_value_domain_indices(v, col_domains)
                 if not indices:
+                    # self.show(self.board)
                     return False
                 if len(indices) == preferred_domain_size:
                     self._set_domains(list(v), [(i, j) for i in indices])
@@ -436,6 +466,7 @@ class Sudoku:
                 for v in all_values:
                     indices = self._get_value_domain_indices(v, grid_domains)
                     if not indices:
+                        # self.show(self.board)
                         return False
                     if len(indices) == preferred_domain_size:
                         self._set_domains(list(v), [(grid_start_x + i % grid_n, grid_start_x + i % grid_n) for i in indices])
@@ -447,10 +478,11 @@ class Sudoku:
         False - if after performing the algorithm domain of some variable became empty.
         True - otherwise
         """
-        print('executing Hidden Single')
+        # print('executing Hidden Single')
         all_values = self._get_all_values()
         if self._hidden_single_pair_triple(all_values):
             return self._naked_single()
+
         return False
 
     def _hidden_pair(self):
@@ -460,7 +492,7 @@ class Sudoku:
         False - if after performing the algorithm domain of some variable became empty.
         True - otherwise
         """
-        print('executing Hidden Pair')
+        # print('executing Hidden Pair')
         all_pairs = self._get_all_value_pairs()
         return self._hidden_single_pair_triple(all_pairs)
 
@@ -471,7 +503,7 @@ class Sudoku:
         False - if after performing the algorithm domain of some variable became empty.
         True - otherwise
         """
-        print('executing Hidden Triples')
+        # print('executing Hidden Triples')
         all_triples = self._get_all_value_triples()
         return self._hidden_single_pair_triple(all_triples)
 
@@ -483,7 +515,7 @@ class Sudoku:
         False - if after performing the algorithm domain of some variable became empty.
         True - otherwise
         """
-        print('executing Locked Candidates')
+        # print('executing Locked Candidates')
         grid_n = int(math.sqrt(self.n))
         # queue if grid indices
         q = [(i, j) for i in range(0, grid_n) for j in range(0, grid_n)]
@@ -522,13 +554,29 @@ class Sudoku:
         False - if after performing the algorithm domain of some variable became empty.
         True - otherwise
         """
-        print('executing X Wings')
+        # print('executing X Wings')
         pass
 
 
     def _inference(self, cells_assigned):
         pass
 
+    def _get_next_cell(self, cell):
+        if cell is None:
+            return 0, 0
+
+        i, j = cell
+        i_next, j_next = i, j
+
+        if i + 1 < self.n:
+            i_next = i + 1
+        else:
+            i_next = 0
+            if j + 1 < self.n:
+                j_next = j + 1
+            else:
+                return None
+        return i_next, j_next
     def _get_next_cell(self, cell):
         if cell is None:
             return 0, 0
@@ -566,7 +614,7 @@ class Sudoku:
         False - if after performing the algorithm domain of some variable became empty.
         True - otherwise
         """
-        print('executing Backtracking')
+        # print('executing Backtracking')
         if self._is_solved():
             return True
 

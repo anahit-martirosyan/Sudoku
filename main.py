@@ -1,5 +1,9 @@
+from input_output import CSVInputProcessor, TXTInputProcessor
 from sudoku import Sudoku
 
+TRIVIAL_PUZZLES_FILE = '../Datasets/TrivialPuzzles1mln/sudoku.csv'
+HARD_PUZZLES_DIR = '../Datasets/HardPuzzles/'
+HARD18CLUE = '87hard18clue.txt'
 
 # Temporary - for testing
 def get_input(file):
@@ -16,22 +20,44 @@ def get_input(file):
     ]
 
 
-# Temporary - for testing
-def show_output(board, file=None):
-    n = len(board)
-    print('-' * (4 * n))
-    for i in range(0, n):
-        for j in range(0, n):
-            print('| {} '.format(board[i][j]), end='')
-        print('|')
-        print('-' * (4 * n))
+
+def solve_sudoku(input_processor, num_puzzles=None, **kwargs):
+    num_puzzles = num_puzzles or len(input_processor.input_puzzles)
+    runtime = 0
+    for i in range(num_puzzles):
+        board = input_processor.get_next_puzzle()
+        sudoku = Sudoku(board)
+        sudoku.solve(**kwargs)
+        if not sudoku.is_valid_solution():
+            print('Invalid solution')
+
+        runtime += sudoku.runtime
+        print('puzzle #{}, runtime: {} s'.format(i, sudoku.runtime))
+
+    return runtime / num_puzzles
 
 
-# Press the green button in the gutter to run the script.
+def test_trivial_puzzles():
+    csv_processor = CSVInputProcessor(TRIVIAL_PUZZLES_FILE)
+    num_puzzles = 100
+    avg_runtime = solve_sudoku(csv_processor, num_puzzles)
+    print('average runtime: {} s'.format(avg_runtime))
+
+    csv_processor.restart_solver()
+    avg_runtime_backtracking = solve_sudoku(csv_processor, num_puzzles,  backtracking_only=True)
+    print('average runtime - backtracking only: {} s'.format(avg_runtime_backtracking))
+
+
+def test_87hard18clue_puzzles():
+    txt_processor = TXTInputProcessor(HARD_PUZZLES_DIR + HARD18CLUE)
+    avg_runtime = solve_sudoku(txt_processor)
+    print('average runtime: {} s'.format(avg_runtime))
+
+    txt_processor.restart_solver()
+    avg_runtime_backtracking = solve_sudoku(txt_processor, backtracking_only=True)
+    print('average runtime - backtracking only: {} s'.format(avg_runtime_backtracking))
+
 if __name__ == '__main__':
-    initial_board = get_input(None)
-    sudoku_solver = Sudoku(initial_board)
-    output_board = sudoku_solver.solve()
-    show_output(sudoku_solver.solution)
-    # show_output(output_board)
-    # show_output(sudoku_solver.board)
+
+    # test_trivial_puzzles()
+    test_87hard18clue_puzzles()

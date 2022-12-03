@@ -61,9 +61,10 @@ class TXTInputProcessor(InputProcessor):
             for line in inputs_file:
                 self.input_puzzles.append(line)
 
-        # self.input_puzzles.pop(77)
 
     def get_next_puzzle(self):
+        if self.current_puzzle_index == len(self.input_puzzles):
+            return None
         puzzle_str = self.input_puzzles[self.current_puzzle_index]
         self.current_puzzle = [[]] * self.puzzle_size
 
@@ -79,6 +80,3 @@ class TXTInputProcessor(InputProcessor):
         self.current_puzzle_index += 1
 
         return self.current_puzzle
-
-class OutputProcessor:
-    pass

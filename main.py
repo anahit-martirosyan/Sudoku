@@ -3,7 +3,8 @@ from sudoku import Sudoku, VariableOrdering, ValueOrdering, Inference
 
 TRIVIAL_PUZZLES_FILE = '../Datasets/TrivialPuzzles1mln/sudoku.csv'
 HARD_PUZZLES_DIR = '../Datasets/HardPuzzles/'
-HARD_PUZZLES = ['87hard18clue.txt', '95hard.txt', '234hard.txt', '1465hard.txt']
+# HARD_PUZZLES = ['87hard18clue.txt', '95hard.txt', '234hard.txt', '1465hard.txt']
+HARD_PUZZLES = ['87hard18clue.txt']
 # HARD18CLUE = '18clue_77.txt'
 BIG_PUZZLES = '44hard16x16.txt'
 CLUE_17 = '../Datasets/17Clue/17Clue.txt'
@@ -95,8 +96,11 @@ def test_sudoku(processor, num_puzzles=None):
 
 def test_trivial_puzzles():
     csv_processor = CSVInputProcessor(TRIVIAL_PUZZLES_FILE)
-    num_puzzles = 100
-    test_sudoku(csv_processor, num_puzzles)
+    num_puzzles = 1000
+    avg_runtime = solve_sudoku(csv_processor, num_puzzles)
+    print('average runtime: {} s'.format(avg_runtime))
+    print()
+    csv_processor.restart_solver()
 
 
 
@@ -104,16 +108,16 @@ def test_87hard18clue_puzzles():
     for filename in HARD_PUZZLES:
         print(filename)
         txt_processor = TXTInputProcessor(HARD_PUZZLES_DIR + filename)
-        test_sudoku(txt_processor)
+        full_test(txt_processor)
 
 def test_17clue_puzzles():
     txt_processor = TXTInputProcessor(CLUE_17)
-    num_puzzles = 1
-    test_sudoku(txt_processor, num_puzzles)
+    num_puzzles = 100
+    full_test(txt_processor, num_puzzles)
 
 
-def full_test_17_clue_puzzles(processor, num_puzzles=None):
-    
+def full_test(processor, num_puzzles=None):
+
     avg_runtime = solve_sudoku(processor, num_puzzles)
     print('average runtime: {} s'.format(avg_runtime))
     print()
@@ -210,14 +214,6 @@ def full_test_17_clue_puzzles(processor, num_puzzles=None):
 if __name__ == '__main__':
 
     # test_trivial_puzzles()
-    # test_87hard18clue_puzzles()
+    test_87hard18clue_puzzles()
     # test_17clue_puzzles()
 
-    txt_processor = TXTInputProcessor(CLUE_17)
-    num_puzzles = 10
-    full_test_17_clue_puzzles(txt_processor, num_puzzles)
-
-    # sudoku = Sudoku(get_input())
-    # # sudoku._get_next_value_with_lcv((1, 0))
-    # sudoku.solve(value_ordering=ValueOrdering.LCV, backtracking_only=True)
-    # sudoku.show(sudoku.solution)

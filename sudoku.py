@@ -741,15 +741,12 @@ class Sudoku:
         (i, j) = next_cell
 
         v = self.get_next_value(next_cell)
-        # self.show(self.board)
-        # print('{} next value: {}'.format(next_cell, v))
 
         initial_domain = self.board[i][j]
 
         inferred = False
         while v:
             domain = copy.deepcopy(self.board[i][j])
-            # print('bt: cell: {}, domain: {}'.format(next_cell, domain))
             self._set_value(i, j, v)
             if self.is_valid_solution():
                 if self.inference_function:
@@ -761,18 +758,14 @@ class Sudoku:
                         return True
 
             if inferred:
-                # self.show(self.solution)
                 self._revert_inference()
                 inferred = False
             domain.remove(v)
             self._revert(i, j, domain)
 
             v = self.get_next_value(next_cell)
-            # print('{} next value: {}'.format(next_cell, v))
 
         self._revert(i, j, initial_domain)
-        # self.show(self.board)
-        # print('backtracking...')
         self.value_assignment_dict.pop(next_cell)
         self.cell_assignment_stack.pop()
         return False

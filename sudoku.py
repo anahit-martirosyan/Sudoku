@@ -1,3 +1,4 @@
+import copy
 import datetime
 import math
 from enum import Enum
@@ -177,7 +178,8 @@ class Sudoku:
                 self._hidden_pair,
                 self._hidden_triples,
                 self._locked_candidates,
-                self._x_wing,
+                # self._x_wing,
+                self._naked_single,
                 self._backtracking
             ]
 
@@ -203,7 +205,10 @@ class Sudoku:
         # inference == Inference.NO_INFERENCE
         return None
 
-    def solve(self, backtracking_only=False, no_constraint_propagation=False, variable_ordering=VariableOrdering.NEXT_UNASSIGNED_CELL, value_ordering=ValueOrdering.NEXT_VALUE, inference=Inference.NO_INFERENCE):
+    def solve(self, backtracking_only=False, no_constraint_propagation=False,
+              variable_ordering=VariableOrdering.NEXT_UNASSIGNED_CELL,
+              value_ordering=ValueOrdering.NEXT_VALUE,
+              inference=Inference.NO_INFERENCE):
         start_time = datetime.datetime.now()
         self._init_solution_board()
         self.get_next_cell = self._get_variable_ordering_function(variable_ordering)
@@ -220,7 +225,7 @@ class Sudoku:
 
         for action in sequence:
             result = action()
-            if result and self._is_solved():
+            if result and self.is_solved():
                 end_time = datetime.datetime.now()
                 self.runtime = (end_time - start_time).total_seconds()
                 return self.solution
@@ -233,7 +238,7 @@ class Sudoku:
         self.runtime = (end_time - start_time).total_seconds()
         return None
 
-    def _is_solved(self):
+    def is_solved(self):
         for i in range(0, self.n):
             for j in range(0, self.n):
                 if self.solution[i][j] is None:
@@ -285,7 +290,6 @@ class Sudoku:
     def _ac3_revise(self, first, second):
         first_domain = self.board[first[0]][first[1]]
         second_domain = self.board[second[0]][second[1]]
-        old_domain = self.board[first[0]][first[1]].copy()
         revised = False
 
         if len(second_domain) == 1:
@@ -293,7 +297,7 @@ class Sudoku:
             if second_domain[0] in first_domain:
                 first_domain.remove(second_domain[0])
                 revised = True
-        return revised, old_domain
+        return revised
 
     def _ac3(self, initial_constraints=None):
         """
@@ -303,20 +307,17 @@ class Sudoku:
         True - otherwise.
         """
         # print('executing AC3')
-        old_domains = {}
-        old_board = self.board.copy()
         q = initial_constraints or self._get_constraint_queue()
         while q:
             (first, second) = q.pop(0)
-            revised, _ = self._ac3_revise(first, second)
+            revised = self._ac3_revise(first, second)
             if revised:
-                old_domains[first] = old_board[first[0]][first[1]]
                 if not self.board[first[0]][first[1]]:
-                    return False, old_domains
+                    return False
                 neighbors = self._get_neighbors(first)
                 q += [((k, h), first) for (k, h) in neighbors]
 
-        return True, old_domains
+        return True
 
 
     def _naked_single(self):
@@ -337,6 +338,8 @@ class Sudoku:
                 self._set_value(i, j, self.board[i][j][0])
                 neighbors = self._get_neighbors((i, j))
                 q += [(neighbor, self.solution[i][j]) for neighbor in neighbors if self.solution[neighbor[0]][neighbor[1]] is None]
+
+        # self.show(self.board)
 
         return True
 
@@ -435,11 +438,6 @@ class Sudoku:
                     v = self._get_missing_value(grid_values)
                     unassigned_var_x = grid_start_x + grid_values.index(None) % grid_n
                     unassigned_var_y = grid_start_y + grid_values.index(None) // grid_n
-                    # for k in range(grid_start_x, grid_start_x + grid_n):
-                    #     for h in range(grid_start_y, grid_start_y + grid_n):
-                    #         if self.solution[k][h] is None:
-                    #             unassigned_var_x = k
-                    #             unassigned_var_y = h
 
                     if v in self.board[unassigned_var_x][unassigned_var_y]:
                         self._set_value(unassigned_var_x, unassigned_var_y, v)
@@ -477,7 +475,7 @@ class Sudoku:
         Set domains of cells to be equal to values
         :param values: list of values to be set
         :param cells: indices indicating cells whose domains are going to be affected
-        :return: 
+        :return:
         """
         for (i, j) in cells:
             self.board[i][j] = list(set(self.board[i][j]) & set(values))
@@ -491,7 +489,6 @@ class Sudoku:
                 indices = self._get_value_domain_indices(v, row_domains)
                 if not indices:
                     return False
-                # print('value: {}, indices: {}'.format(v, indices))
                 if len(indices) == preferred_domain_size:
                     self._set_domains(list(v), [(i, j) for j in indices])
 
@@ -509,8 +506,8 @@ class Sudoku:
 
         # Checking sub-grids
         grid_n = int(math.sqrt(self.n))
-        for i in range(0, int(math.sqrt(self.n))):
-            for j in range(0, int(math.sqrt(self.n))):
+        for i in range(0, int(grid_n)):
+            for j in range(0, int(grid_n)):
                 grid_start_x = i * grid_n
                 grid_start_y = j * grid_n
 
@@ -521,7 +518,9 @@ class Sudoku:
                     if not indices:
                         return False
                     if len(indices) == preferred_domain_size:
-                        self._set_domains(list(v), [(grid_start_x + i % grid_n, grid_start_x + i % grid_n) for i in indices])
+                        self._set_domains(list(v), [(grid_start_x + i // grid_n, grid_start_y + i % grid_n) for i in indices])
+
+        return True
 
     def _hidden_single(self):
         """
@@ -569,7 +568,7 @@ class Sudoku:
         """
         # print('executing Locked Candidates')
         grid_n = int(math.sqrt(self.n))
-        # queue if grid indices
+        # queue of grid indices
         q = [(i, j) for i in range(0, grid_n) for j in range(0, grid_n)]
         while q:
             (i, j) = q.pop(0)
@@ -599,6 +598,8 @@ class Sudoku:
 
                     q.extend(list(q_set))
 
+        return True
+
     def _x_wing(self):
         """
         Executes X Wings optimization.
@@ -606,25 +607,22 @@ class Sudoku:
         False - if after performing the algorithm domain of some variable became empty.
         True - otherwise
         """
-        # print('executing X Wings')
         pass
 
 
     def _revert_inference(self):
         old_domains = self.backtracking_stack.pop()
-        for (i, j), domain in old_domains.items():
-            if not domain:
-                print((i, j))
-            self.board[i][j] = domain
-            self.solution[i][j] = None
+        for i in range(0, self.n):
+            for j in range(0, self.n):
+                if old_domains[i][j] != self.board[i][j]:
+                    self.solution[i][j] = None
+        self.board = old_domains
 
     def _forward_checking(self, cell):
         neighbors = self._get_neighbors(cell)
-        old_domains = {}
+        old_domains = copy.deepcopy(self.board)
         for n in neighbors:
-            revised, old_domain = self._ac3_revise(n, cell)
-            if revised:
-                old_domains[n] = old_domain
+            self._ac3_revise(n, cell)
 
         self.backtracking_stack.append(old_domains)
 
@@ -632,9 +630,10 @@ class Sudoku:
     def _maintaining_arc_consistency(self, cell):
         neighbors = self._get_neighbors(cell)
         initial_constraints = [(n, cell) for n in neighbors]
-        revised, old_domains = self._ac3(initial_constraints)
-        if revised:
-            self.backtracking_stack.append(old_domains)
+        old_domains = copy.deepcopy(self.board)
+        self._ac3(initial_constraints)
+        self._naked_single()
+        self.backtracking_stack.append(old_domains)
 
 
     def _get_next_cell(self, cell):
@@ -712,7 +711,7 @@ class Sudoku:
         considered_values = self.value_assignment_dict[cell]
         neighbours = self._get_neighbors(cell)
 
-        min_num = self.n
+        min_num = self.n * self.n
         result_value = None
 
         for v in self.board[cell[0]][cell[1]]:
@@ -732,40 +731,48 @@ class Sudoku:
         True - otherwise
         """
         # print('executing Backtracking')
-        if self._is_solved():
+        if self.is_solved():
             return True
 
         next_cell = self.get_next_cell()
-
-        # print('next_cell: {}'.format(next_cell))
-
-        # print('variable_ordering {}'.format(self.variable_ordering))
 
         if next_cell is None:
             return True
         (i, j) = next_cell
 
         v = self.get_next_value(next_cell)
+        # self.show(self.board)
+        # print('{} next value: {}'.format(next_cell, v))
 
         initial_domain = self.board[i][j]
 
+        inferred = False
         while v:
-            domain = self.board[i][j].copy()
+            domain = copy.deepcopy(self.board[i][j])
+            # print('bt: cell: {}, domain: {}'.format(next_cell, domain))
             self._set_value(i, j, v)
             if self.is_valid_solution():
                 if self.inference_function:
                     self.inference_function((i, j))
+                    inferred = True
                 if self.is_valid_solution():
                     res = self._backtracking()
                     if res:
                         return True
 
-                domain.remove(v)
-                self._revert(i, j, domain)
+            if inferred:
+                # self.show(self.solution)
+                self._revert_inference()
+                inferred = False
+            domain.remove(v)
+            self._revert(i, j, domain)
 
-            v = self.get_next_value((i, j))
+            v = self.get_next_value(next_cell)
+            # print('{} next value: {}'.format(next_cell, v))
 
         self._revert(i, j, initial_domain)
+        # self.show(self.board)
+        # print('backtracking...')
         self.value_assignment_dict.pop(next_cell)
         self.cell_assignment_stack.pop()
         return False

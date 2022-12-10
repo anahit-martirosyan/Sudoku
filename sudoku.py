@@ -2,6 +2,7 @@ import copy
 import datetime
 import math
 from enum import Enum
+from random import randint
 
 
 class VariableOrdering(Enum):
@@ -11,7 +12,8 @@ class VariableOrdering(Enum):
 
 class ValueOrdering(Enum):
     NEXT_VALUE = 1
-    LCV = 2
+    RANDOM_VALUE = 2
+    LCV = 3
 
 class Inference(Enum):
     NO_INFERENCE = 1
@@ -178,7 +180,6 @@ class Sudoku:
                 self._hidden_pair,
                 self._hidden_triples,
                 self._locked_candidates,
-                # self._x_wing,
                 self._naked_single,
                 self._backtracking
             ]
@@ -194,8 +195,14 @@ class Sudoku:
         return self._get_next_cell_with_degree_heuristic
 
     def _get_value_ordering_function(self, value_ordering):
-        return self._get_next_value_with_lcv if value_ordering == ValueOrdering.LCV \
-            else self._get_next_value
+        if value_ordering == ValueOrdering.NEXT_VALUE:
+            return self._get_next_value
+        if value_ordering == ValueOrdering.RANDOM_VALUE:
+            return self._get_next_value_randomly
+        else:
+            # value_ordering == ValueOrdering.LCV
+            return self._get_next_value_with_lcv
+
 
     def _get_inference_function(self, inference):
         if inference == Inference.FORWARD_CHECKING:
@@ -206,9 +213,9 @@ class Sudoku:
         return None
 
     def solve(self, backtracking_only=False, no_constraint_propagation=False,
-              variable_ordering=VariableOrdering.NEXT_UNASSIGNED_CELL,
-              value_ordering=ValueOrdering.NEXT_VALUE,
-              inference=Inference.NO_INFERENCE):
+              variable_ordering=VariableOrdering.MRV,
+              value_ordering=ValueOrdering.LCV,
+              inference=Inference.FORWARD_CHECKING):
         start_time = datetime.datetime.now()
         self._init_solution_board()
         self.get_next_cell = self._get_variable_ordering_function(variable_ordering)
@@ -338,8 +345,6 @@ class Sudoku:
                 self._set_value(i, j, self.board[i][j][0])
                 neighbors = self._get_neighbors((i, j))
                 q += [(neighbor, self.solution[i][j]) for neighbor in neighbors if self.solution[neighbor[0]][neighbor[1]] is None]
-
-        # self.show(self.board)
 
         return True
 
@@ -705,6 +710,19 @@ class Sudoku:
             potential_next += 1
 
         return None
+
+    def _get_next_value_randomly(self, cell):
+        self.value_assignment_dict[cell] = self.value_assignment_dict.get(cell, [])
+        potential_next = randint(1, 9)
+        tried_values = set()
+        domain = set(self.board[cell[0]][cell[1]])
+        while potential_next in self.value_assignment_dict or potential_next not in domain:
+            tried_values.add(potential_next)
+            if tried_values == domain:
+                return None
+            potential_next = randint(1, 9)
+
+        return potential_next
 
     def _get_next_value_with_lcv(self, cell):
         self.value_assignment_dict[cell] = self.value_assignment_dict.get(cell, [0])
